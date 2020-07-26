@@ -32,6 +32,15 @@ function instance(system, id, config) {
 		self.checkFeedbacks('instance_status');
 	});
 
+	self.device_page = {};
+
+	self.system.on('device_page_set', function(deviceid, page) {
+		self.device_page['device'] = deviceid;
+		self.device_page['page'] = page;
+		self.setVariable('device_page', self.device_page);
+		self.checkFeedbacks('device_page_set');
+	});
+
 	self.time_interval = setInterval(function() {
 		const now = new Date();
 		const hhmm = (`0${now.getHours()}`).slice(-2) + ":" + (`0${now.getMinutes()}`).slice(-2);
@@ -762,6 +771,45 @@ instance.prototype.update_variables = function (system) {
 		options: []
 	};
 
+	feedbacks['device_page_set'] = {
+		label: 'Surface Page Change',
+		description: 'Triggered when a page change occurs',
+		options:     [
+			{
+				type: 'colorpicker',
+				label: 'Foreground color',
+				id: 'fg',
+				default: self.rgb(255, 255, 255)
+			},
+			{
+				type: 'colorpicker',
+				label: 'Background color',
+				id: 'bg',
+				default: self.rgb(51, 153, 102)
+			},
+			{
+				type: 'dropdown',
+				label: 'Another surface / controller',
+				id: 'controller',
+				default: self.CHOICES_SURFACES[1],
+				choices: self.CHOICES_SURFACES.slice(1)
+				// Ignore 'self' (for now?) because:
+				// a. The only logical use case for this feedback is when multiple surfaces exist, and only to indicate
+				//    a page change on another device. Otherwise a page change will occur on this bank, rendering the
+				//    feedback useless.
+				// b. The feedback() function doesn't have access to the surface serial number without major code
+				//    modifications, and it is required to work with 'self'.
+			},
+			{
+				type: 'dropdown',
+				label: 'Page',
+				id: 'page',
+				default: '1',
+				choices: self.CHOICES_PAGES
+			}
+		]
+	};
+
 	self.setFeedbackDefinitions(feedbacks);
 };
 
@@ -788,8 +836,13 @@ instance.prototype.feedback = function(feedback, bank) {
 			color: self.rgb(255,255,255),
 			bgcolor: self.rgb(0,200,0)
 		};
+	}
 
-
+	if (feedback.type === 'device_page_set') {
+		if (self.device_page['device'] === feedback.options.controller &&
+				self.device_page['page'] === feedback.options.page) {
+			return {color: feedback.options.fg, bgcolor: feedback.options.bg}
+		}
 	}
 };
 
